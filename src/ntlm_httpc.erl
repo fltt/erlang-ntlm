@@ -1,15 +1,19 @@
 -module(ntlm_httpc).
--export([request/3]).
+-export([request/3,request/4]).
 
 request(Method, Request, Credentials) ->
+    request(Method, Request, Credentials, []).
+
+request(Method, Request, Credentials, Options) ->
     Request2 = request_add_header(Request,
         {"User-Agent", "Mozilla/5.0 (Erlang/OTP)"}),
-    case httpc:request(Method, Request2, [], [{body_format, binary}]) of
+    case httpc:request(Method, Request2, Options, [{body_format, binary}]) of
         {ok, {{_Ver, 401, _Phrase}, Headers, _Body}} = Response ->
             case www_authenticate(Headers) of
                 ["Basic"|_] -> request_basic(Method, Request2, Credentials);
+                ["Negotiate"] -> request_ntlm(Method, Request2, Credentials);
                 ["NTLM"] -> request_ntlm(Method, Request2, Credentials);
-                undefined -> Response
+                _ -> Response
             end;
         OtherResponse -> OtherResponse
     end.
